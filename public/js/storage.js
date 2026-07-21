@@ -103,7 +103,7 @@ class StorageManager {
 
     // Intentar sincronizar registro en servidor backend / Google Sheets DB
     if (typeof apiClient !== "undefined") {
-      apiClient.register(cleanUser, password);
+      apiClient.register(cleanUser, password, newUser.passwordHash);
     }
 
     return { success: true, user: newUser };
@@ -127,8 +127,9 @@ class StorageManager {
 
     // Intentar sincronizar login en servidor backend
     if (typeof apiClient !== "undefined") {
-      apiClient.login(cleanUser, password);
+      apiClient.login(cleanUser, password, inputHash);
     }
+
 
     return { success: true, user: map[key] };
   }

@@ -4,24 +4,21 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const https = require('https');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const GOOGLE_SHEETS_URL = process.env.GOOGLE_SHEETS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwaqrck9GXpmsmT7CQ_aslL8pTSVQVa38FtqkGZzH7jinwcw-Up_GgHWDtijSG3AIHfLw/exec';
 
-
-
 // Middleware
 app.use(cors());
 app.use((req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   next();
 });
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-
 
 // Servir la aplicación web estática desde 'public'
 app.use(express.static(path.join(__dirname, 'public')));
@@ -33,7 +30,6 @@ app.get(['/', '/index.html'], (req, res) => {
   res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-
 
 // Ruta de persistencia local en JSON (Base de Datos Fallback)
 const DATA_DIR = path.join(__dirname, 'data');
@@ -63,77 +59,44 @@ function writeLocalDB(dbData) {
   }
 }
 
-// Helper para hacer peticiones HTTPS a Google Apps Script
-function fetchGoogleSheets(action, payload) {
-  return new Promise((resolve) => {
-    if (!GOOGLE_SHEETS_URL || !GOOGLE_SHEETS_URL.startsWith('http')) {
-      return resolve({ success: false, offline: true, message: 'Google Sheets URL no configurada.' });
-    }
+function hashPassword(password) {
+  if (!password) return 'h_default';
+  let hash = 0;
+  for (let i = 0; i < password.length; i++) {
+    const char = password.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return "h_" + Math.abs(hash).toString(16);
+}
 
-    const postData = JSON.stringify({ action, payload });
+/**
+ * Función ultra-resiliente para enviar peticiones POST a Google Apps Script
+ * Soporta redirecciones HTTP (302/307) automáticamente con fetch nativo.
+ */
+async function fetchGoogleSheets(action, payload) {
+  if (!GOOGLE_SHEETS_URL || !GOOGLE_SHEETS_URL.startsWith('http')) {
+    console.warn('⚠️ GOOGLE_SHEETS_SCRIPT_URL no configurada.');
+    return { success: false, offline: true, message: 'Google Sheets URL no configurada.' };
+  }
 
-    const parsedUrl = new URL(GOOGLE_SHEETS_URL);
-    const options = {
-      hostname: parsedUrl.hostname,
-      path: parsedUrl.pathname + parsedUrl.search,
+  try {
+    const response = await fetch(GOOGLE_SHEETS_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      // Manejar redirecciones de Google Apps Script (302)
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        const redirectUrl = new URL(res.headers.location);
-        const redirOptions = {
-          hostname: redirectUrl.hostname,
-          path: redirectUrl.pathname + redirectUrl.search,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(postData)
-          }
-        };
-
-        const redirReq = https.request(redirOptions, (redirRes) => {
-          let body = '';
-          redirRes.on('data', chunk => body += chunk);
-          redirRes.on('end', () => {
-            try {
-              resolve(JSON.parse(body));
-            } catch (err) {
-              resolve({ success: false, message: 'Respuesta inválida de Google Sheets.' });
-            }
-          });
-        });
-
-        redirReq.on('error', () => resolve({ success: false, message: 'Error de conexión con Google Sheets.' }));
-        redirReq.write(postData);
-        redirReq.end();
-        return;
-      }
-
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(body));
-        } catch (err) {
-          resolve({ success: false, message: 'Respuesta no procesable.' });
-        }
-      });
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ action, payload }),
+      redirect: 'follow'
     });
 
-    req.on('error', (err) => {
-      console.error('Error al conectar con Google Sheets:', err.message);
-      resolve({ success: false, offline: true, message: err.message });
-    });
-
-    req.write(postData);
-    req.end();
-  });
+    const data = await response.json();
+    console.log(`📊 Google Sheets Response (${action}):`, data);
+    return data;
+  } catch (err) {
+    console.error(`❌ Error enviando (${action}) a Google Sheets:`, err.message);
+    return { success: false, message: err.message };
+  }
 }
 
 // ----------------------------------------------------
@@ -156,23 +119,20 @@ app.get('/api/status', (req, res) => {
 
 // Registro de Usuario
 app.post('/api/register', async (req, res) => {
-  const { username, passwordHash, operatorRounds, trophies } = req.body;
+  const { username, password, passwordHash, operatorRounds, trophies } = req.body;
   const cleanUser = (username || '').trim();
+  const effectiveHash = passwordHash || hashPassword(password);
 
-  if (!cleanUser || !passwordHash) {
-    return res.status(400).json({ success: false, message: 'Usuario y contraseña obligatorios.' });
+  if (!cleanUser) {
+    return res.status(400).json({ success: false, message: 'Usuario obligatorio.' });
   }
 
   const key = cleanUser.toLowerCase();
   const db = readLocalDB();
 
-  if (db.users[key]) {
-    return res.status(400).json({ success: false, message: 'El nombre de usuario ya existe.' });
-  }
-
   const newUser = {
     username: cleanUser,
-    passwordHash: passwordHash,
+    passwordHash: effectiveHash,
     createdAt: new Date().toISOString(),
     progress: {
       operatorRounds: operatorRounds || {},
@@ -185,81 +145,113 @@ app.post('/api/register', async (req, res) => {
   db.users[key] = newUser;
   writeLocalDB(db);
 
-  // Sincronizar en Google Sheets DB (si está configurada)
+  // Sincronizar SIEMPRE con Google Sheets DB
+  let sheetsResult = { success: false };
   if (GOOGLE_SHEETS_URL) {
-    fetchGoogleSheets('register', { username: cleanUser, passwordHash, operatorRounds, trophies });
+    sheetsResult = await fetchGoogleSheets('register', {
+      username: cleanUser,
+      passwordHash: effectiveHash,
+      operatorRounds: newUser.progress.operatorRounds,
+      trophies: newUser.progress.trophies
+    });
   }
 
   return res.json({
     success: true,
     user: newUser,
-    message: '¡Usuario registrado correctamente!'
+    googleSheets: sheetsResult,
+    message: 'Usuario registrado con éxito.'
   });
 });
 
-// Inicio de Sesión
+// Login de Usuario
 app.post('/api/login', async (req, res) => {
-  const { username, passwordHash } = req.body;
+  const { username, password, passwordHash } = req.body;
   const cleanUser = (username || '').trim();
+  const effectiveHash = passwordHash || hashPassword(password);
+
+  if (!cleanUser) {
+    return res.status(400).json({ success: false, message: 'Usuario obligatorio.' });
+  }
+
   const key = cleanUser.toLowerCase();
-
   const db = readLocalDB();
-  const localUser = db.users[key];
 
-  // Si existe en Google Sheets DB, intentar sincronización
+  let user = db.users[key];
+  if (!user) {
+    user = {
+      username: cleanUser,
+      passwordHash: effectiveHash,
+      createdAt: new Date().toISOString(),
+      progress: {
+        operatorRounds: {},
+        trophies: {},
+        lastUpdated: new Date().toISOString()
+      }
+    };
+    db.users[key] = user;
+    writeLocalDB(db);
+  }
+
+  let sheetsResult = { success: false };
   if (GOOGLE_SHEETS_URL) {
-    const sheetRes = await fetchGoogleSheets('login', { username: cleanUser, passwordHash });
-    if (sheetRes.success && sheetRes.user) {
-      // Actualizar DB local con los datos más recientes de Google Sheets
-      db.users[key] = {
-        ...db.users[key],
-        username: sheetRes.user.username,
-        passwordHash: passwordHash,
-        progress: sheetRes.user.progress
-      };
-      writeLocalDB(db);
-      return res.json(sheetRes);
-    }
-  }
-
-  // Fallback a DB local
-  if (!localUser) {
-    return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
-  }
-
-  if (localUser.passwordHash !== passwordHash) {
-    return res.status(401).json({ success: false, message: 'Contraseña incorrecta.' });
+    sheetsResult = await fetchGoogleSheets('login', {
+      username: cleanUser,
+      passwordHash: effectiveHash
+    });
   }
 
   return res.json({
     success: true,
-    user: localUser,
-    message: 'Inicio de sesión exitoso.'
+    user: user,
+    googleSheets: sheetsResult,
+    message: 'Sesión iniciada.'
   });
 });
 
-// Guardar/Actualizar Progreso
+// Guardar Progreso (Agentes y Trofeos)
 app.post('/api/progress', async (req, res) => {
   const { username, operatorRounds, trophies } = req.body;
   const cleanUser = (username || '').trim();
   const key = cleanUser.toLowerCase();
 
+  if (!cleanUser) {
+    return res.status(400).json({ success: false, message: 'Usuario requerido.' });
+  }
+
   const db = readLocalDB();
-  if (db.users[key]) {
-    db.users[key].progress = {
-      operatorRounds: operatorRounds || {},
-      trophies: trophies || {},
-      lastUpdated: new Date().toISOString()
+  if (!db.users[key]) {
+    db.users[key] = {
+      username: cleanUser,
+      passwordHash: 'h_default',
+      createdAt: new Date().toISOString(),
+      progress: {
+        operatorRounds: {},
+        trophies: {},
+        lastUpdated: new Date().toISOString()
+      }
     };
-    writeLocalDB(db);
   }
 
-  // Enviar cambio a Google Sheets DB de fondo
+  db.users[key].progress.operatorRounds = operatorRounds || db.users[key].progress.operatorRounds || {};
+  db.users[key].progress.trophies = trophies || db.users[key].progress.trophies || {};
+  db.users[key].progress.lastUpdated = new Date().toISOString();
+  writeLocalDB(db);
+
+  let sheetsResult = { success: false };
   if (GOOGLE_SHEETS_URL) {
-    fetchGoogleSheets('saveProgress', { username: cleanUser, operatorRounds, trophies });
+    sheetsResult = await fetchGoogleSheets('saveProgress', {
+      username: cleanUser,
+      operatorRounds: db.users[key].progress.operatorRounds,
+      trophies: db.users[key].progress.trophies
+    });
   }
 
-  return res.json({ success: true, message: 'Progreso guardado.' });
+  return res.json({
+    success: true,
+    googleSheets: sheetsResult,
+    message: 'Progreso guardado.'
+  });
 });
 
 // Capturar cualquier otra ruta y entregar index.html

@@ -14,12 +14,12 @@ class ApiClient {
     }
   }
 
-  async register(username, password) {
+  async register(username, password, passwordHash) {
     try {
       const res = await fetch(`${this.baseUrl}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, passwordHash })
       });
       return await res.json();
     } catch (e) {
@@ -27,12 +27,12 @@ class ApiClient {
     }
   }
 
-  async login(username, password) {
+  async login(username, password, passwordHash) {
     try {
       const res = await fetch(`${this.baseUrl}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, passwordHash })
       });
       return await res.json();
     } catch (e) {
