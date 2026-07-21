@@ -1,0 +1,19 @@
+{
+  "short_name": "R6S Platino",
+  "name": "Guía & Tracker del Platino - Rainbow Six Siege",
+  "description": "Tracker interactivo de trofeos y rondas por agente para PS4 y PS5 con respaldo en Google Sheets.",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230a0e14'/><path d='M20 20h60v60H20z' fill='none' stroke='%23f4ad16' stroke-width='6'/><text x='50' y='65' font-family='sans-serif' font-size='40' font-weight='900' fill='%23f4ad16' text-anchor='middle'>R6</text></svg>",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0a0e14",
+  "theme_color": "#f4ad16",
+  "display": "standalone",
+  "orientation": "any",
+  "categories": ["games", "utilities", "entertainment"]
+}

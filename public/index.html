@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guía & Tracker del Platino - Rainbow Six Siege (PS4 & PS5)</title>
+  
+  <!-- Configuración PWA (App Descargable en PC y Móvil) -->
+  <link rel="manifest" href="/manifest.json?v=6.0">
+  <meta name="theme-color" content="#f4ad16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="R6S Platino">
+
+  <!-- Estilos Tácticos -->
+  <link rel="stylesheet" href="css/main.css?v=6.0">
+  <link rel="stylesheet" href="css/components.css?v=6.0">
+  <link rel="stylesheet" href="css/tactical-theme.css?v=6.0">
+
+  <!-- SheetJS para exportar a Excel (.xlsx) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- App Header / Navbar -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-logo">
+        <span class="logo-badge">R6S</span>
+        <h1 class="brand-title">PLATINUM TRACKER PS4 & PS5</h1>
+      </div>
+
+      <div class="header-user-bar">
+        <!-- Badge de Estado de Google Sheets DB -->
+        <span class="cloud-badge cloud-offline" id="cloudStatusBadge">Comprobando DB...</span>
+
+        <!-- Botón PWA Instalable -->
+        <button class="btn-install-app hidden" id="installAppBtn">📲 Instalar App</button>
+
+        <div class="user-badge-pill" id="userBadge">
+          <div class="user-avatar-initial" id="userAvatarInitial">?</div>
+          <span class="user-name-text" id="userBadgeName">Cargando...</span>
+        </div>
+        <button class="btn-secondary" id="switchAccountBtn">👤 Cambiar Cuenta</button>
+        <button class="btn-secondary hidden" id="logoutBtn">❌ Salir</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    
+    <!-- Dashboard Stats Grid -->
+    <section class="dashboard-grid">
+      <div class="stat-card">
+        <div class="stat-title">Progreso General del Platino</div>
+        <div class="stat-value" id="statOverallProgress">0%</div>
+        <div class="stat-subtext" id="statTrophiesCount">0 / 21 Trofeos</div>
+        <div class="main-progress-bar-container">
+          <div class="main-progress-bar-fill" id="mainProgressBarFill"></div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-title">Agentes Pioneros (10+ Rondas)</div>
+        <div class="stat-value" id="statOperatorsMaxed">0 / 20</div>
+        <div class="stat-subtext">Trofeo "Plantilla Completa"</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-title">UATs Pioneras Completadas</div>
+        <div class="stat-value" id="statUatsMaxed">0 / 5 UATs</div>
+        <div class="stat-subtext">SAS, FBI, GIGN, Spetsnaz, GSG 9</div>
+      </div>
+    </section>
+
+    <!-- Excel Actions Bar -->
+    <section class="excel-actions-bar">
+      <div class="excel-bar-info">
+        <span class="excel-icon">📊</span>
+        <div>
+          <h3>Exportación e Importación de Archivos de Excel (.xlsx)</h3>
+          <p>Descarga tu tabla completa de avance a un archivo de Excel o importa un archivo guardado anteriormente.</p>
+        </div>
+      </div>
+      <div class="excel-buttons-group">
+        <button class="btn-excel-export" id="exportExcelBtn">
+          📥 Exportar a Excel (.xlsx)
+        </button>
+        <label class="btn-excel-import">
+          📤 Importar desde Excel
+          <input type="file" id="importExcelInput" accept=".xlsx, .xls" style="display: none;" />
+        </label>
+      </div>
+    </section>
+
+    <!-- Sección 1: Tracker de Agentes Pioneros y UATs -->
+    <section class="section-container" style="margin-bottom: 40px;">
+      <div class="section-title-group">
+        <h2 class="section-title">TRACKER DE RONDAS POR AGENTE PIONERO Y UAT</h2>
+        <p class="section-desc">
+          Registra las rondas jugadas (0 a 10) con cada uno de los 20 agentes base para completar el trofeo "Plantilla Completa" y los trofeos de especialista de cada UAT.
+        </p>
+      </div>
+
+      <div id="operatorsContainer">
+        <!-- Renderizado dinámico desde app.js -->
+      </div>
+    </section>
+
+    <!-- Sección 2: Guía Completa de Trofeos PS4 y PS5 -->
+    <section class="section-container">
+      <div class="section-title-group">
+        <h2 class="section-title">GUÍA Y LISTA DE TROFEOS (PS4 & PS5)</h2>
+        <p class="section-desc">
+          Filtra por consola, busca por nombre o desglosa las estrategias tácticas para los trofeos más complejos.
+        </p>
+      </div>
+
+      <!-- Barra de Filtros -->
+      <div class="trophies-filter-bar">
+        <div class="filter-group">
+          <span class="filter-label">Consola:</span>
+          <button class="platform-filter-btn active" data-platform="AMBOS">Todos (Ambos)</button>
+          <button class="platform-filter-btn" data-platform="PS4">PlayStation 4</button>
+          <button class="platform-filter-btn" data-platform="PS5">PlayStation 5</button>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-label">Estado:</span>
+          <button class="status-filter-btn active" data-status="ALL">Todos</button>
+          <button class="status-filter-btn" data-status="COMPLETED">Completados</button>
+          <button class="status-filter-btn" data-status="PENDING">Pendientes</button>
+        </div>
+
+        <div class="search-box">
+          <input type="text" class="search-input" id="trophySearchInput" placeholder="🔍 Buscar trofeo, estrategia o palabras clave..." />
+        </div>
+      </div>
+
+      <!-- Lista de Trofeos -->
+      <div class="trophies-list-container" id="trophiesContainer">
+        <!-- Renderizado dinámico desde app.js -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de Autenticación (Login / Registro / Cuentas) -->
+  <div class="modal-overlay hidden" id="authModalOverlay">
+    <div class="auth-card-modal">
+      <div class="auth-modal-header">
+        <h2>R6S PLATINUM TRACKER</h2>
+        <p>Inicia sesión o regístrate para sincronizar tu progreso en Google Sheets</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="tab-btn active" id="tabLoginBtn">Iniciar Sesión</button>
+        <button class="tab-btn" id="tabRegisterBtn">Registrarse</button>
+      </div>
+
+      <!-- Formulario Login -->
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginUsername">Nombre de Usuario</label>
+          <input type="text" id="loginUsername" class="form-input" placeholder="Ej. JugadorPro" required />
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Contraseña</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required />
+        </div>
+        <div class="form-error" id="loginError"></div>
+        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
+          Ingresar al Tracker
+        </button>
+      </form>
+
+      <!-- Formulario Registro -->
+      <form id="registerForm" class="hidden">
+        <div class="form-group">
+          <label for="regUsername">Nuevo Usuario</label>
+          <input type="text" id="regUsername" class="form-input" placeholder="Ej. MiNombreR6" required />
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Contraseña</label>
+          <input type="password" id="regPassword" class="form-input" placeholder="Mínimo 4 caracteres" required />
+        </div>
+        <div class="form-group">
+          <label for="regPasswordConfirm">Confirmar Contraseña</label>
+          <input type="password" id="regPasswordConfirm" class="form-input" placeholder="Repite tu contraseña" required />
+        </div>
+        <div class="form-error" id="registerError"></div>
+        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
+          Crear Mi Cuenta
+        </button>
+      </form>
+
+      <!-- Cuentas Registradas Rápidas -->
+      <div class="quick-users-section">
+        <h4>Cuentas en este dispositivo:</h4>
+        <div id="quickUserListContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts de la Aplicación -->
+  <script src="js/trophiesData.js?v=6.0"></script>
+  <script src="js/operatorsData.js?v=6.0"></script>
+  <script src="js/api.js?v=6.0"></script>
+  <script src="js/storage.js?v=6.0"></script>
+  <script src="js/excel.js?v=6.0"></script>
+  <script src="js/auth.js?v=6.0"></script>
+  <script src="js/pwa.js?v=6.0"></script>
+  <script src="js/app.js?v=6.0"></script>
+
+</body>
+</html>

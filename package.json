@@ -1,0 +1,33 @@
+{
+  "name": "r6s-platinum-tracker-app",
+  "version": "2.0.0",
+  "description": "Guía y Tracker del Platino de Rainbow Six Siege (PS4 & PS5) con servidor Node.js, Google Sheets DB y PWA instalable.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.18.1",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "psn-api": "^2.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "rainbow-six-siege",
+    "trophy-tracker",
+    "ps4",
+    "ps5",
+    "google-sheets-db",
+    "pwa",
+    "nodejs",
+    "render"
+  ],
+  "author": "Antigravity AI",
+  "license": "MIT"
+}

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: r6s-platinum-tracker
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: GOOGLE_SHEETS_SCRIPT_URL
+        value: https://script.google.com/macros/s/AKfycbwaqrck9GXpmsmT7CQ_aslL8pTSVQVa38FtqkGZzH7jinwcw-Up_GgHWDtijSG3AIHfLw/exec
