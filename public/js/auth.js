@@ -184,6 +184,19 @@ class AuthUI {
   }
 }
 
+function togglePasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === "password") {
+    input.type = "text";
+    btn.textContent = "🙈";
+  } else {
+    input.type = "password";
+    btn.textContent = "👁️";
+  }
+}
+window.togglePasswordVisibility = togglePasswordVisibility;
+
 let authUI;
 document.addEventListener("DOMContentLoaded", () => {
   authUI = new AuthUI();
@@ -194,4 +207,5 @@ document.addEventListener("DOMContentLoaded", () => {
     authUI.openAuthModal();
   }
 });
+
 

@@ -150,6 +150,38 @@
   background: rgba(16, 124, 65, 0.4);
 }
 
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.password-input-wrapper .form-input {
+  padding-right: 46px;
+  width: 100%;
+}
+
+.btn-toggle-pw {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  user-select: none;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.btn-toggle-pw:hover {
+  color: var(--siege-gold);
+  transform: scale(1.15);
+}
+
+
 .section-title-group {
   margin-bottom: 20px;
   border-left: 4px solid var(--siege-gold);

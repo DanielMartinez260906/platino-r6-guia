@@ -6,16 +6,16 @@
   <title>Guía & Tracker del Platino - Rainbow Six Siege (PS4 & PS5)</title>
   
   <!-- Configuración PWA (App Descargable en PC y Móvil) -->
-  <link rel="manifest" href="/manifest.json?v=6.0">
+  <link rel="manifest" href="/manifest.json?v=7.0">
   <meta name="theme-color" content="#f4ad16">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="R6S Platino">
 
   <!-- Estilos Tácticos -->
-  <link rel="stylesheet" href="css/main.css?v=6.0">
-  <link rel="stylesheet" href="css/components.css?v=6.0">
-  <link rel="stylesheet" href="css/tactical-theme.css?v=6.0">
+  <link rel="stylesheet" href="css/main.css?v=7.0">
+  <link rel="stylesheet" href="css/components.css?v=7.0">
+  <link rel="stylesheet" href="css/tactical-theme.css?v=7.0">
 
   <!-- SheetJS para exportar a Excel (.xlsx) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -166,7 +166,10 @@
         </div>
         <div class="form-group">
           <label for="loginPassword">Contraseña</label>
-          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required />
+          <div class="password-input-wrapper">
+            <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required />
+            <button type="button" class="btn-toggle-pw" title="Mostrar/Ocultar Contraseña" onclick="togglePasswordVisibility('loginPassword', this)">👁️</button>
+          </div>
         </div>
         <div class="form-error" id="loginError"></div>
         <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
@@ -182,11 +185,17 @@
         </div>
         <div class="form-group">
           <label for="regPassword">Contraseña</label>
-          <input type="password" id="regPassword" class="form-input" placeholder="Mínimo 4 caracteres" required />
+          <div class="password-input-wrapper">
+            <input type="password" id="regPassword" class="form-input" placeholder="Mínimo 4 caracteres" required />
+            <button type="button" class="btn-toggle-pw" title="Mostrar/Ocultar Contraseña" onclick="togglePasswordVisibility('regPassword', this)">👁️</button>
+          </div>
         </div>
         <div class="form-group">
           <label for="regPasswordConfirm">Confirmar Contraseña</label>
-          <input type="password" id="regPasswordConfirm" class="form-input" placeholder="Repite tu contraseña" required />
+          <div class="password-input-wrapper">
+            <input type="password" id="regPasswordConfirm" class="form-input" placeholder="Repite tu contraseña" required />
+            <button type="button" class="btn-toggle-pw" title="Mostrar/Ocultar Contraseña" onclick="togglePasswordVisibility('regPasswordConfirm', this)">👁️</button>
+          </div>
         </div>
         <div class="form-error" id="registerError"></div>
         <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
@@ -203,14 +212,14 @@
   </div>
 
   <!-- Scripts de la Aplicación -->
-  <script src="js/trophiesData.js?v=6.0"></script>
-  <script src="js/operatorsData.js?v=6.0"></script>
-  <script src="js/api.js?v=6.0"></script>
-  <script src="js/storage.js?v=6.0"></script>
-  <script src="js/excel.js?v=6.0"></script>
-  <script src="js/auth.js?v=6.0"></script>
-  <script src="js/pwa.js?v=6.0"></script>
-  <script src="js/app.js?v=6.0"></script>
+  <script src="js/trophiesData.js?v=7.0"></script>
+  <script src="js/operatorsData.js?v=7.0"></script>
+  <script src="js/api.js?v=7.0"></script>
+  <script src="js/storage.js?v=7.0"></script>
+  <script src="js/excel.js?v=7.0"></script>
+  <script src="js/auth.js?v=7.0"></script>
+  <script src="js/pwa.js?v=7.0"></script>
+  <script src="js/app.js?v=7.0"></script>
 
 </body>
 </html>
