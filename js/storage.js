@@ -1,9 +1,9 @@
 // js/storage.js
-// Gestor de persistencia en LocalStorage y cliente de sincronización con servidor/Google Sheets DB
+// Gestor de persistencia en LocalStorage (Contraseñas en Texto Plano a petición del usuario)
 
 const STORAGE_KEYS = {
-  USERS: "r6s_platinum_users_v3",
-  ACTIVE_USER: "r6s_platinum_active_user_v3"
+  USERS: "r6s_platinum_users_v4",
+  ACTIVE_USER: "r6s_platinum_active_user_v4"
 };
 
 class StorageManager {
@@ -40,16 +40,6 @@ class StorageManager {
     };
   }
 
-  hashPassword(password) {
-    let hash = 0;
-    for (let i = 0; i < password.length; i++) {
-      const char = password.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash |= 0;
-    }
-    return "h_" + Math.abs(hash).toString(16);
-  }
-
   getUsersMap() {
     try {
       const raw = localStorage.getItem(STORAGE_KEYS.USERS);
@@ -76,10 +66,12 @@ class StorageManager {
 
   async registerUser(username, password) {
     const cleanUser = (username || '').trim();
+    const cleanPassword = (password || '').trim();
+
     if (!cleanUser || cleanUser.length < 3) {
       return { success: false, message: 'El nombre de usuario debe tener al menos 3 caracteres.' };
     }
-    if (!password || password.length < 4) {
+    if (!cleanPassword || cleanPassword.length < 4) {
       return { success: false, message: 'La contraseña debe tener al menos 4 caracteres.' };
     }
 
@@ -92,7 +84,7 @@ class StorageManager {
 
     const newUser = {
       username: cleanUser,
-      passwordHash: this.hashPassword(password),
+      password: cleanPassword,
       createdAt: new Date().toISOString(),
       progress: this.getEmptyProgress()
     };
@@ -101,9 +93,9 @@ class StorageManager {
     this.saveUsersMap(map);
     localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, key);
 
-    // Intentar sincronizar registro en servidor backend / Google Sheets DB
+    // Sincronizar con servidor backend / Google Sheets DB en texto plano
     if (typeof apiClient !== "undefined") {
-      apiClient.register(cleanUser, password, newUser.passwordHash);
+      apiClient.register(cleanUser, cleanPassword);
     }
 
     return { success: true, user: newUser };
@@ -111,6 +103,7 @@ class StorageManager {
 
   async loginUser(username, password) {
     const cleanUser = (username || '').trim();
+    const cleanPassword = (password || '').trim();
     const key = cleanUser.toLowerCase();
     const map = this.getUsersMap();
 
@@ -118,18 +111,15 @@ class StorageManager {
       return { success: false, message: 'El usuario no existe.' };
     }
 
-    const inputHash = this.hashPassword(password);
-    if (map[key].passwordHash !== inputHash) {
+    if (map[key].password !== cleanPassword && map[key].passwordHash !== cleanPassword) {
       return { success: false, message: 'Contraseña incorrecta.' };
     }
 
     localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, key);
 
-    // Intentar sincronizar login en servidor backend
     if (typeof apiClient !== "undefined") {
-      apiClient.login(cleanUser, password, inputHash);
+      apiClient.login(cleanUser, cleanPassword);
     }
-
 
     return { success: true, user: map[key] };
   }

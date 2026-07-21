@@ -1,4 +1,4 @@
-// server.js - Backend Node.js con Express y conexión a Google Sheets DB
+// server.js - Backend Node.js con Express y conexión a Google Sheets DB (Contraseñas en Texto Plano)
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -59,24 +59,11 @@ function writeLocalDB(dbData) {
   }
 }
 
-function hashPassword(password) {
-  if (!password) return 'h_default';
-  let hash = 0;
-  for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
-  }
-  return "h_" + Math.abs(hash).toString(16);
-}
-
 /**
- * Función ultra-resiliente para enviar peticiones POST a Google Apps Script
- * Soporta redirecciones HTTP (302/307) automáticamente con fetch nativo.
+ * Peticiones POST a Google Apps Script (Texto Plano)
  */
 async function fetchGoogleSheets(action, payload) {
   if (!GOOGLE_SHEETS_URL || !GOOGLE_SHEETS_URL.startsWith('http')) {
-    console.warn('⚠️ GOOGLE_SHEETS_SCRIPT_URL no configurada.');
     return { success: false, offline: true, message: 'Google Sheets URL no configurada.' };
   }
 
@@ -117,11 +104,11 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-// Registro de Usuario
+// Registro de Usuario (Contraseña en Texto Plano)
 app.post('/api/register', async (req, res) => {
   const { username, password, passwordHash, operatorRounds, trophies } = req.body;
   const cleanUser = (username || '').trim();
-  const effectiveHash = passwordHash || hashPassword(password);
+  const plainPassword = password || passwordHash || '';
 
   if (!cleanUser) {
     return res.status(400).json({ success: false, message: 'Usuario obligatorio.' });
@@ -132,7 +119,7 @@ app.post('/api/register', async (req, res) => {
 
   const newUser = {
     username: cleanUser,
-    passwordHash: effectiveHash,
+    password: plainPassword,
     createdAt: new Date().toISOString(),
     progress: {
       operatorRounds: operatorRounds || {},
@@ -141,16 +128,14 @@ app.post('/api/register', async (req, res) => {
     }
   };
 
-  // Guardar en DB local
   db.users[key] = newUser;
   writeLocalDB(db);
 
-  // Sincronizar SIEMPRE con Google Sheets DB
   let sheetsResult = { success: false };
   if (GOOGLE_SHEETS_URL) {
     sheetsResult = await fetchGoogleSheets('register', {
       username: cleanUser,
-      passwordHash: effectiveHash,
+      password: plainPassword,
       operatorRounds: newUser.progress.operatorRounds,
       trophies: newUser.progress.trophies
     });
@@ -160,15 +145,15 @@ app.post('/api/register', async (req, res) => {
     success: true,
     user: newUser,
     googleSheets: sheetsResult,
-    message: 'Usuario registrado con éxito.'
+    message: 'Usuario registrado en texto plano con éxito.'
   });
 });
 
-// Login de Usuario
+// Login de Usuario (Contraseña en Texto Plano)
 app.post('/api/login', async (req, res) => {
   const { username, password, passwordHash } = req.body;
   const cleanUser = (username || '').trim();
-  const effectiveHash = passwordHash || hashPassword(password);
+  const plainPassword = password || passwordHash || '';
 
   if (!cleanUser) {
     return res.status(400).json({ success: false, message: 'Usuario obligatorio.' });
@@ -181,7 +166,7 @@ app.post('/api/login', async (req, res) => {
   if (!user) {
     user = {
       username: cleanUser,
-      passwordHash: effectiveHash,
+      password: plainPassword,
       createdAt: new Date().toISOString(),
       progress: {
         operatorRounds: {},
@@ -197,7 +182,7 @@ app.post('/api/login', async (req, res) => {
   if (GOOGLE_SHEETS_URL) {
     sheetsResult = await fetchGoogleSheets('login', {
       username: cleanUser,
-      passwordHash: effectiveHash
+      password: plainPassword
     });
   }
 
@@ -223,7 +208,7 @@ app.post('/api/progress', async (req, res) => {
   if (!db.users[key]) {
     db.users[key] = {
       username: cleanUser,
-      passwordHash: 'h_default',
+      password: '123',
       createdAt: new Date().toISOString(),
       progress: {
         operatorRounds: {},

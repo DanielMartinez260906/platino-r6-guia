@@ -1,17 +1,6 @@
 /**
  * GOOGLE APPS SCRIPT - CONECTOR DE BASE DE DATOS EN GOOGLE SHEETS
- * 
- * INSTRUCCIONES DE INSTALACIÓN (EN 1 MINUTO):
- * 1. Abre una Hoja de Cálculo nueva en Google Sheets.
- * 2. En el menú superior, ve a "Extensiones" > "Apps Script".
- * 3. Borra todo el código que aparezca y pega este código completo.
- * 4. Haz clic en el botón azul "Implementar" (esquina superior derecha) > "Nueva implementación".
- * 5. Selecciona el tipo "Aplicación web".
- * 6. En "Ejecutar como": Pon "Yo (tu email)".
- * 7. En "Quién tiene acceso": Selecciona "Cualquier persona" (Anyone).
- * 8. Haz clic en "Implementar", autoriza el acceso y copia la URL generada.
- * 9. Pega esa URL en tu archivo `.env` o en las variables de entorno de RENDER como:
- *    GOOGLE_SHEETS_SCRIPT_URL=https://script.google.com/macros/s/xxxx/exec
+ * (Versión con Contraseñas en Texto Plano a petición del usuario)
  */
 
 function doPost(e) {
@@ -19,7 +8,7 @@ function doPost(e) {
   lock.tryLock(10000);
 
   try {
-    var sheetUsers = getOrCreateSheet("Usuarios", ["Username", "PasswordHash", "FechaRegistro", "UltimaSesion"]);
+    var sheetUsers = getOrCreateSheet("Usuarios", ["Username", "Password", "FechaRegistro", "UltimaSesion"]);
     var sheetProgress = getOrCreateSheet("Progreso", ["Username", "OperatorRoundsJSON", "TrophiesJSON", "UltimaActualizacion"]);
 
     var contents = JSON.parse(e.postData.contents);
@@ -70,10 +59,10 @@ function getOrCreateSheet(sheetName, headers) {
 
 function handleRegister(sheetUsers, sheetProgress, payload) {
   var username = (payload.username || "").trim();
-  var passwordHash = payload.passwordHash || "";
+  var password = payload.password || payload.passwordHash || "";
   var key = username.toLowerCase();
 
-  if (!username || !passwordHash) {
+  if (!username || !password) {
     return { success: false, message: "Usuario y contraseña requeridos." };
   }
 
@@ -85,7 +74,7 @@ function handleRegister(sheetUsers, sheetProgress, payload) {
   }
 
   var now = new Date().toISOString();
-  sheetUsers.appendRow([username, passwordHash, now, now]);
+  sheetUsers.appendRow([username, password, now, now]);
 
   var defaultRounds = payload.operatorRounds ? JSON.stringify(payload.operatorRounds) : "{}";
   var defaultTrophies = payload.trophies ? JSON.stringify(payload.trophies) : "{}";
@@ -93,98 +82,107 @@ function handleRegister(sheetUsers, sheetProgress, payload) {
 
   return {
     success: true,
-    user: { username: username, progress: { operatorRounds: payload.operatorRounds || {}, trophies: payload.trophies || {} } },
-    message: "Usuario registrado en Google Sheets."
+    user: { username: username, password: password, progress: { operatorRounds: payload.operatorRounds || {}, trophies: payload.trophies || {} } },
+    message: "Usuario registrado en Google Sheets (Texto Plano)."
   };
 }
 
 function handleLogin(sheetUsers, sheetProgress, payload) {
   var username = (payload.username || "").trim();
-  var passwordHash = payload.passwordHash || "";
+  var password = payload.password || payload.passwordHash || "";
   var key = username.toLowerCase();
 
   var usersData = sheetUsers.getDataRange().getValues();
-  var foundUserRow = -1;
-  var actualUsername = username;
+  var foundIndex = -1;
 
   for (var i = 1; i < usersData.length; i++) {
     if (usersData[i][0].toString().toLowerCase() === key) {
-      foundUserRow = i + 1;
-      actualUsername = usersData[i][0];
-      if (usersData[i][1].toString() !== passwordHash.toString()) {
-        return { success: false, message: "Contraseña incorrecta." };
-      }
+      foundIndex = i;
       break;
     }
   }
 
-  if (foundUserRow === -1) {
-    return { success: false, message: "Usuario no encontrado." };
+  if (foundIndex === -1) {
+    return { success: false, message: "El usuario no existe." };
   }
 
-  // Actualizar última sesión
+  var storedPassword = usersData[foundIndex][1].toString();
+  if (storedPassword !== password) {
+    return { success: false, message: "Contraseña incorrecta." };
+  }
+
   var now = new Date().toISOString();
-  sheetUsers.getRange(foundUserRow, 4).setValue(now);
-
-  // Leer Progreso
-  var progressData = sheetProgress.getDataRange().getValues();
-  var userRounds = {};
-  var userTrophies = {};
-
-  for (var j = 1; j < progressData.length; j++) {
-    if (progressData[j][0].toString().toLowerCase() === key) {
-      try { userRounds = JSON.parse(progressData[j][1]); } catch(e) {}
-      try { userTrophies = JSON.parse(progressData[j][2]); } catch(e) {}
-      break;
-    }
-  }
+  sheetUsers.getRange(foundIndex + 1, 4).setValue(now);
 
   return {
     success: true,
-    user: {
-      username: actualUsername,
-      progress: { operatorRounds: userRounds, trophies: userTrophies }
-    },
-    message: "Inicio de sesión correcto."
+    message: "Inicio de sesión correcto en Google Sheets."
   };
 }
 
 function handleSaveProgress(sheetProgress, payload) {
   var username = (payload.username || "").trim();
   var key = username.toLowerCase();
-  var roundsJSON = JSON.stringify(payload.operatorRounds || {});
-  var trophiesJSON = JSON.stringify(payload.trophies || {});
-  var now = new Date().toISOString();
+
+  if (!username) {
+    return { success: false, message: "Usuario requerido." };
+  }
 
   var progressData = sheetProgress.getDataRange().getValues();
-  var foundRow = -1;
+  var foundIndex = -1;
 
   for (var i = 1; i < progressData.length; i++) {
     if (progressData[i][0].toString().toLowerCase() === key) {
-      foundRow = i + 1;
+      foundIndex = i;
       break;
     }
   }
 
-  if (foundRow !== -1) {
-    sheetProgress.getRange(foundRow, 2).setValue(roundsJSON);
-    sheetProgress.getRange(foundRow, 3).setValue(trophiesJSON);
-    sheetProgress.getRange(foundRow, 4).setValue(now);
+  var roundsJSON = JSON.stringify(payload.operatorRounds || {});
+  var trophiesJSON = JSON.stringify(payload.trophies || {});
+  var now = new Date().toISOString();
+
+  if (foundIndex !== -1) {
+    sheetProgress.getRange(foundIndex + 1, 2, 1, 3).setValues([[roundsJSON, trophiesJSON, now]]);
   } else {
     sheetProgress.appendRow([username, roundsJSON, trophiesJSON, now]);
   }
 
-  return { success: true, message: "Progreso guardado en Google Sheets." };
+  return { success: true, message: "Progreso actualizado en Google Sheets." };
 }
 
 function handleSyncAll(sheetUsers, sheetProgress) {
   var usersData = sheetUsers.getDataRange().getValues();
   var progressData = sheetProgress.getDataRange().getValues();
 
-  var usersList = [];
-  for (var i = 1; i < usersData.length; i++) {
-    usersList.push(usersData[i][0]);
+  var progressMap = {};
+  for (var j = 1; j < progressData.length; j++) {
+    var uName = progressData[j][0].toString().toLowerCase();
+    try {
+      progressMap[uName] = {
+        operatorRounds: JSON.parse(progressData[j][1] || "{}"),
+        trophies: JSON.parse(progressData[j][2] || "{}"),
+        lastUpdated: progressData[j][3]
+      };
+    } catch (e) {
+      progressMap[uName] = { operatorRounds: {}, trophies: {}, lastUpdated: "" };
+    }
   }
 
-  return { success: true, users: usersList, total: usersList.length };
+  var allUsers = {};
+  for (var i = 1; i < usersData.length; i++) {
+    var rawName = usersData[i][0].toString();
+    var uKey = rawName.toLowerCase();
+    var userPass = usersData[i][1].toString();
+    var createdAt = usersData[i][2];
+
+    allUsers[uKey] = {
+      username: rawName,
+      password: userPass,
+      createdAt: createdAt,
+      progress: progressMap[uKey] || { operatorRounds: {}, trophies: {}, lastUpdated: "" }
+    };
+  }
+
+  return { success: true, users: allUsers };
 }
