@@ -673,3 +673,172 @@
   border-width: 0 3px 3px 0;
   transform: rotate(45deg);
 }
+
+/* =========================================================
+   DISEÑO ADAPTATIVO (RESPONSIVE) PREMIUM PARA CELULARES
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 10px 14px;
+  }
+
+  .header-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .brand-logo {
+    justify-content: center;
+  }
+
+  .brand-title {
+    font-size: 1.05rem;
+    text-align: center;
+  }
+
+  .header-user-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .user-badge-pill {
+    padding: 4px 10px;
+    font-size: 0.85rem;
+  }
+
+  .main-content {
+    margin: 14px auto;
+    padding: 0 12px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-value {
+    font-size: 1.8rem;
+  }
+
+  .excel-actions-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .excel-bar-info {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .excel-buttons-group {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .btn-excel-export, .btn-excel-import {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+    font-size: 0.95rem;
+  }
+
+  .operators-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .operator-item {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .op-avatar-role {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .counter-controls {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .btn-counter {
+    width: 38px;
+    height: 38px;
+    font-size: 1.1rem;
+  }
+
+  .input-rounds-count {
+    width: 50px;
+    height: 38px;
+    font-size: 1.05rem;
+  }
+
+  .btn-max {
+    width: auto;
+    padding: 0 14px;
+    height: 38px;
+  }
+
+  .trophies-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .filter-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .platform-filter-btn, .status-filter-btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  .trophy-main-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .trophy-info-col {
+    width: 100%;
+  }
+
+  .btn-toggle-guide {
+    width: 100%;
+    justify-content: center;
+    padding: 10px;
+    font-size: 0.9rem;
+  }
+
+  .auth-card-modal {
+    width: 95%;
+    max-width: 420px;
+    padding: 20px 16px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 12px;
+  }
+}
+

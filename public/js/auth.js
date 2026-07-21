@@ -188,4 +188,10 @@ let authUI;
 document.addEventListener("DOMContentLoaded", () => {
   authUI = new AuthUI();
   authUI.updateUserUI();
+
+  const user = storage.getActiveUser();
+  if (!user) {
+    authUI.openAuthModal();
+  }
 });
+

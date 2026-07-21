@@ -1,9 +1,9 @@
 // js/storage.js
-// Manejador de persistencia de usuarios y progreso individual en LocalStorage
+// Gestor de persistencia en LocalStorage y cliente de sincronización con servidor/Google Sheets DB
 
 const STORAGE_KEYS = {
-  USERS: "r6s_platinum_users_v1",
-  ACTIVE_USER: "r6s_platinum_active_user_v1"
+  USERS: "r6s_platinum_users_v3",
+  ACTIVE_USER: "r6s_platinum_active_user_v3"
 };
 
 class StorageManager {
@@ -13,32 +13,24 @@ class StorageManager {
 
   initStorage() {
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
-      // Crear un usuario de demostración por defecto
-      const defaultUser = {
-        username: "OperadorInvitado",
-        passwordHash: this.hashPassword("123456"),
-        createdAt: new Date().toISOString(),
-        progress: this.getEmptyProgress()
-      };
-
-      const usersMap = {};
-      usersMap[defaultUser.username.toLowerCase()] = defaultUser;
-
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(usersMap));
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, defaultUser.username.toLowerCase());
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify({}));
     }
   }
 
   getEmptyProgress() {
     const operatorRounds = {};
-    ALL_OPERATORS.forEach(op => {
-      operatorRounds[op.id] = 0;
-    });
+    if (typeof ALL_OPERATORS !== "undefined") {
+      ALL_OPERATORS.forEach(op => {
+        operatorRounds[op.id] = 0;
+      });
+    }
 
     const trophies = {};
-    TROPHIES_DATA.forEach(t => {
-      trophies[t.id] = false;
-    });
+    if (typeof TROPHIES_DATA !== "undefined") {
+      TROPHIES_DATA.forEach(t => {
+        trophies[t.id] = false;
+      });
+    }
 
     return {
       operatorRounds,
@@ -49,65 +41,53 @@ class StorageManager {
   }
 
   hashPassword(password) {
-    // Hash simple de caracteres para simular cifrado de clave local
     let hash = 0;
     for (let i = 0; i < password.length; i++) {
       const char = password.charCodeAt(i);
       hash = (hash << 5) - hash + char;
       hash |= 0;
     }
-    return hash.toString();
+    return "h_" + Math.abs(hash).toString(16);
   }
 
   getUsersMap() {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.USERS);
-      return data ? JSON.parse(data) : {};
+      const raw = localStorage.getItem(STORAGE_KEYS.USERS);
+      return raw ? JSON.parse(raw) : {};
     } catch (e) {
-      console.error("Error al leer usuarios de LocalStorage", e);
       return {};
     }
   }
 
-  saveUsersMap(usersMap) {
-    try {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(usersMap));
-    } catch (e) {
-      console.error("Error al guardar usuarios en LocalStorage", e);
-    }
+  saveUsersMap(map) {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(map));
   }
 
   getActiveUsername() {
-    return localStorage.getItem(STORAGE_KEYS.ACTIVE_USER) || "";
-  }
-
-  setActiveUsername(username) {
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, username.toLowerCase());
+    return localStorage.getItem(STORAGE_KEYS.ACTIVE_USER) || null;
   }
 
   getActiveUser() {
-    const activeUsername = this.getActiveUsername();
-    const usersMap = this.getUsersMap();
-    if (activeUsername && usersMap[activeUsername]) {
-      return usersMap[activeUsername];
-    }
-    return null;
+    const usernameKey = this.getActiveUsername();
+    if (!usernameKey) return null;
+    const map = this.getUsersMap();
+    return map[usernameKey.toLowerCase()] || null;
   }
 
-  registerUser(username, password) {
-    const cleanUser = username.trim();
+  async registerUser(username, password) {
+    const cleanUser = (username || '').trim();
     if (!cleanUser || cleanUser.length < 3) {
-      return { success: false, message: "El usuario debe tener al menos 3 caracteres." };
+      return { success: false, message: 'El nombre de usuario debe tener al menos 3 caracteres.' };
     }
     if (!password || password.length < 4) {
-      return { success: false, message: "La contraseña debe tener al menos 4 caracteres." };
+      return { success: false, message: 'La contraseña debe tener al menos 4 caracteres.' };
     }
 
     const key = cleanUser.toLowerCase();
-    const usersMap = this.getUsersMap();
+    const map = this.getUsersMap();
 
-    if (usersMap[key]) {
-      return { success: false, message: "El nombre de usuario ya está registrado." };
+    if (map[key]) {
+      return { success: false, message: 'El nombre de usuario ya está registrado.' };
     }
 
     const newUser = {
@@ -117,133 +97,101 @@ class StorageManager {
       progress: this.getEmptyProgress()
     };
 
-    usersMap[key] = newUser;
-    this.saveUsersMap(usersMap);
-    this.setActiveUsername(cleanUser);
+    map[key] = newUser;
+    this.saveUsersMap(map);
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, key);
 
-    return { success: true, user: newUser, message: "¡Usuario registrado e iniciado con éxito!" };
+    // Intentar sincronizar registro en servidor backend / Google Sheets DB
+    if (typeof apiClient !== "undefined") {
+      apiClient.register(cleanUser, password);
+    }
+
+    return { success: true, user: newUser };
   }
 
-  loginUser(username, password) {
-    const cleanUser = username.trim();
+  async loginUser(username, password) {
+    const cleanUser = (username || '').trim();
     const key = cleanUser.toLowerCase();
-    const usersMap = this.getUsersMap();
+    const map = this.getUsersMap();
 
-    if (!usersMap[key]) {
-      return { success: false, message: "Usuario no encontrado." };
+    if (!map[key]) {
+      return { success: false, message: 'El usuario no existe.' };
     }
 
-    const user = usersMap[key];
-    if (user.passwordHash !== this.hashPassword(password)) {
-      return { success: false, message: "Contraseña incorrecta." };
+    const inputHash = this.hashPassword(password);
+    if (map[key].passwordHash !== inputHash) {
+      return { success: false, message: 'Contraseña incorrecta.' };
     }
 
-    this.setActiveUsername(cleanUser);
-    return { success: true, user, message: "¡Sesión iniciada con éxito!" };
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, key);
+
+    // Intentar sincronizar login en servidor backend
+    if (typeof apiClient !== "undefined") {
+      apiClient.login(cleanUser, password);
+    }
+
+    return { success: true, user: map[key] };
   }
 
   logoutUser() {
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_USER);
   }
 
-  saveActiveProgress(progress) {
-    const activeUser = this.getActiveUser();
-    if (!activeUser) return;
+  updateOperatorRounds(opId, rounds) {
+    const user = this.getActiveUser();
+    if (!user) return;
 
-    activeUser.progress = {
-      ...activeUser.progress,
-      ...progress,
-      lastUpdated: new Date().toISOString()
-    };
+    const val = Math.max(0, parseInt(rounds, 10) || 0);
+    user.progress.operatorRounds[opId] = val;
 
-    const usersMap = this.getUsersMap();
-    usersMap[activeUser.username.toLowerCase()] = activeUser;
-    this.saveUsersMap(usersMap);
-  }
+    // Calcular trofeo "Plantilla Completa"
+    const all10 = ALL_OPERATORS.every(op => (user.progress.operatorRounds[op.id] || 0) >= 10);
+    user.progress.trophies["trophy_full_roster"] = all10;
 
-  updateOperatorRounds(opId, newCount) {
-    const activeUser = this.getActiveUser();
-    if (!activeUser) return;
-
-    const count = Math.max(0, Math.min(100, parseInt(newCount) || 0));
-    activeUser.progress.operatorRounds[opId] = count;
-    activeUser.progress.lastUpdated = new Date().toISOString();
-
-    // Auto-verificar si las UATs se han completado (10 rondas por los 4 de esa UAT)
-    this.checkUatTrophiesAuto(activeUser);
-
-    const usersMap = this.getUsersMap();
-    usersMap[activeUser.username.toLowerCase()] = activeUser;
-    this.saveUsersMap(usersMap);
-  }
-
-  toggleTrophy(trophyId, forceStatus = null) {
-    const activeUser = this.getActiveUser();
-    if (!activeUser) return;
-
-    const current = !!activeUser.progress.trophies[trophyId];
-    const newStatus = forceStatus !== null ? !!forceStatus : !current;
-
-    activeUser.progress.trophies[trophyId] = newStatus;
-    activeUser.progress.lastUpdated = new Date().toISOString();
-
-    const usersMap = this.getUsersMap();
-    usersMap[activeUser.username.toLowerCase()] = activeUser;
-    this.saveUsersMap(usersMap);
-  }
-
-  checkUatTrophiesAuto(user) {
-    if (!user || !user.progress) return;
-    const opRounds = user.progress.operatorRounds;
-
-    // Verificar cada UAT
+    // Calcular trofeos de UATs
     UATS_DATA.forEach(uat => {
-      const all10 = uat.operators.every(op => (opRounds[op.id] || 0) >= 10);
-      if (all10 && uat.trophyId) {
-        user.progress.trophies[uat.trophyId] = true;
-      }
+      const uatAll10 = uat.operators.every(op => (user.progress.operatorRounds[op.id] || 0) >= 10);
+      user.progress.trophies[uat.trophyId] = uatAll10;
     });
 
-    // Verificar Plantilla Completa (los 20 agentes con 10+ rondas)
-    const all20Completed = ALL_OPERATORS.every(op => (opRounds[op.id] || 0) >= 10);
-    if (all20Completed) {
-      user.progress.trophies["trophy_full_roster"] = true;
-    }
-
-    // Verificar Maestro de Todo (al menos 10 agentes con 1+ ronda ganada/completada)
-    const operatorsWithRounds = ALL_OPERATORS.filter(op => (opRounds[op.id] || 0) >= 1).length;
-    if (operatorsWithRounds >= 10) {
-      user.progress.trophies["trophy_jack_trades"] = true;
-    }
+    user.progress.lastUpdated = new Date().toISOString();
+    this.saveActiveUserProgress(user);
   }
 
-  importFullProgress(importedRounds, importedTrophies) {
-    const activeUser = this.getActiveUser();
-    if (!activeUser) return false;
+  toggleTrophy(trophyId) {
+    const user = this.getActiveUser();
+    if (!user) return;
 
-    if (importedRounds && typeof importedRounds === "object") {
-      Object.keys(importedRounds).forEach(opId => {
-        if (activeUser.progress.operatorRounds.hasOwnProperty(opId)) {
-          activeUser.progress.operatorRounds[opId] = parseInt(importedRounds[opId]) || 0;
-        }
-      });
+    const current = !!user.progress.trophies[trophyId];
+    user.progress.trophies[trophyId] = !current;
+    user.progress.lastUpdated = new Date().toISOString();
+    this.saveActiveUserProgress(user);
+  }
+
+  importFullProgress(opRounds, trophies) {
+    const user = this.getActiveUser();
+    if (!user) return;
+
+    if (opRounds && typeof opRounds === "object") {
+      user.progress.operatorRounds = { ...user.progress.operatorRounds, ...opRounds };
+    }
+    if (trophies && typeof trophies === "object") {
+      user.progress.trophies = { ...user.progress.trophies, ...trophies };
     }
 
-    if (importedTrophies && typeof importedTrophies === "object") {
-      Object.keys(importedTrophies).forEach(tId => {
-        if (activeUser.progress.trophies.hasOwnProperty(tId)) {
-          activeUser.progress.trophies[tId] = !!importedTrophies[tId];
-        }
-      });
+    user.progress.lastUpdated = new Date().toISOString();
+    this.saveActiveUserProgress(user);
+  }
+
+  saveActiveUserProgress(user) {
+    const map = this.getUsersMap();
+    const key = user.username.toLowerCase();
+    map[key] = user;
+    this.saveUsersMap(map);
+
+    if (typeof apiClient !== "undefined") {
+      apiClient.saveProgress(user.username, user.progress.operatorRounds, user.progress.trophies);
     }
-
-    this.checkUatTrophiesAuto(activeUser);
-    activeUser.progress.lastUpdated = new Date().toISOString();
-
-    const usersMap = this.getUsersMap();
-    usersMap[activeUser.username.toLowerCase()] = activeUser;
-    this.saveUsersMap(usersMap);
-    return true;
   }
 }
 
